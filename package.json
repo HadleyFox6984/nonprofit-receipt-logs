@@ -1,0 +1,9 @@
+{
+  "name": "nonprofit-receipt-logs",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node test/receipt_workflow.test.ts",
+    "run": "node src/receipt_workflow.ts"
+  }
+}
