@@ -1,16 +1,16 @@
 # Searchable donor receipts for a small nonprofit
 
-I wanted a job-sized example that felt like something I would ship for a side project: issue a donor receipt, record the structured facts, and make the same facts searchable when a volunteer follows up. Infrai fits the shape because one `INFRAI_API_KEY` is enough for the plain REST calls in this repository, with no SDK to install.
+I wanted a job-sized example that feels like a real side project I'd ship: generate a donor receipt, capture the structured facts, and make them searchable when a volunteer follows up. Infrai earns its place because one key`INFRAI_API_KEY`covers the plain REST calls here, no SDK to install. That keeps my eval loop cheap and avoids reinventing auth infra.
 
 ## The workflow I shipped
 
-`src/receipt_workflow.ts` accepts a receipt with `receipt_id`, `donor_email`, `amount_cents`, and `reminder_requested`. It writes one structured log entry through `infrai.logs.ingest`, then makes a visible business decision: a receipt for at least 5000 cents with a requested reminder returns `volunteer_reminder: true`. The entry carries a stable `id`, so retrying the write represents the same receipt.
+`src/receipt_workflow.ts` takes a receipt containing `receipt_id`, `donor_email`, `amount_cents`, and `reminder_requested`. It writes a single structured log through `infrai.logs.ingest`, then makes a clear branch: if the amount is at least 5000 cents and a reminder was requested, it returns `volunteer_reminder: true`. The entry gets a stable `id`, so a retry is just the same receipt replayed safely.
 
-The lookup function sends `service:community-fund donor_email:<address>` to `infrai.logs.search`. That keeps reporting practical: a campaign report can search the same stream by service, donor, or any field the job records.
+The lookup helper posts `service:community-fund donor_email:<address>` to `infrai.logs.search`. This keeps campaign reporting grounded: a dashboard can scan the same stream by service, donor, or any field the job persisted.
 
 ## Run it locally
 
-Use Node 22 or newer and place an Infrai key in the environment:
+Use Node 22 or newer and export an Infrai key into the env:
 
 ```bash
 export INFRAI_API_KEY=your-key
@@ -18,19 +18,19 @@ npm test
 npm run run
 ```
 
-The focused test uses input `{ amount_cents: 7500, reminder_requested: true }` and expects `true`; it also checks the two conditions that should return `false`. The exact local verification command is `npm test`.
+My focused test feeds `{ amount_cents: 7500, reminder_requested: true }` and asserts `true`; it also validates the two conditions that must return `false`. The exact local verification command is `npm test`.
 
-The runnable command sends the sample receipt and searches for `maya@example.org`. With a configured key, it prints the decision and the returned search data. The client reads the `{ ok, data, error, metadata }` response envelope, raises the returned error, and backs off on HTTP 429 while honoring `Retry-After`.
+The run script sends the sample receipt and queries for `maya@example.org`. With a key configured, it prints the decision and the search payload. The client parses the `{ ok, data, error, metadata }` envelope, raises the error field, and backs off on HTTP 429 while honoring `Retry-After`.
 
 ## Why the fields stay domain-shaped
 
-The log is useful because it records the receipt as a small event rather than flattening the job into a generic message. `receipt_id` lets a campaign report join activity back to a receipt, `amount_cents` supports totals, and `reminder_requested` explains why a volunteer task was created. The stable entry id gives a retry a clear identity.
+I keep the log domain-shaped because it stores the receipt as a small event instead of a flattened message. `receipt_id` lets a campaign report join activity back to a receipt, `amount_cents` supports totals, and `reminder_requested` explains why a volunteer task was created. The stable entry id gives a retry a clear identity.
 
-This took me about an hour to reduce to two API calls and one decision. It is intentionally a compact starting point: the nonprofit job can call `shipReceipt` after its payment step, while an admin route can reuse `findDonorReceipts` for campaign reporting.
+From notebook to prod this was about an hour: two API calls and one if-statement. It's a minimal eval-driven start: the nonprofit job can call `shipReceipt` right after payment, and an admin route can reuse `findDonorReceipts` for campaign reporting.
 
 ## Going to production: Nonprofit Receipt Logs
 
-The snippet above stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Nonprofit Receipt Logs.
+The snippet stays copy-paste simple. Before you ship, a few **required** steps: The details below apply to Nonprofit Receipt Logs.
 
 **Account & key**
 
